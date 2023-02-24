@@ -1,0 +1,415 @@
+\documentclass[11pt]{report}
+\usepackage{./assignment_programming}
+\usepackage{diagbox}
+\usepackage{enumerate}
+\usepackage[shortlabels]{enumitem}
+\usepackage{stmaryrd}
+\usepackage{graphicx}
+\usepackage[final]{pdfpages}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{authblk}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{epstopdf}
+\graphicspath{{../result_q3_q4/}}
+%\usepackage{geometry}
+\input{./Definitions.tex}
+
+\begin{document}
+\title{
+  CS512: Advanced Machine Learning. \\
+  \large Assignment 1: Graphical Models (Programming Questions)}
+
+\author{Garima Gupta: ggupta22@uic.edu \and Sai Teja Karnati: skarna3@uic.edu \and
+ Shubham Singh: ssing57@uic.edu \and Wangfei Wang: wwang75@uic.edu}
+
+\maketitle
+
+\section{Conditional Random Fields}
+
+Suppose the training set consists of $n$ words.
+The image of the $t$-th word can be represented as
+$X^t = (\xvec^t_1, \ldots, \xvec^t_m)'$,
+where $'$ means transpose,
+$t$ is a superscript (not exponent),
+and each \emph{row} of $X^t$ (\eg\ $\xvec^t_m$) represents a letter.
+Here $m$ is the number of letters in the word,
+and $\xvec^t_j$ is a 128 dimensional vector that represents its $j$-th letter image.
+To ease notation, we simply assume all words have $m$ letters,
+and the model extends naturally to the general case where the length of word varies.
+The sequence label of a word is encoded as
+$\yvec^t = (y^t_1, \ldots, y^t_m)$,
+where $y^t_k \in \Ycal := \{1, 2, \ldots, 26\}$ represents the label of the $k$-th letter.
+%So in Figure \ref{fig:brace}, $y^t_1 = 2$, $y^t_2 = 18$, \ldots, $y^t_5 = 5$.
+
+Using this notation, the Conditional Random Field (CRF) model for a word/label pair $(X, \yvec)$ can be written as
+\begin{align}
+	\label{eq:crf}
+	p(\yvec | X ) &= \frac{1}{Z_X} \exp \rbr{\sum_{s=1}^m \inner{\wvec_{y_s}}{\xvec_s} + \sum_{s=1}^{m-1} T_{y_s, y_{s+1}}} \\
+	\where Z_X &= \sum_{\hat{\yvec} \in \Ycal^m} \exp \rbr{\sum_{s=1}^m \inner{\wvec_{\yhat_s}}{\xvec_s} + \sum_{s=1}^{m-1} T_{\yhat_s, \yhat_{s+1}}}.
+\end{align}
+%
+%$Z(X)$ is a normalization constant depending on $X$.
+$\inner{\cdot}{\cdot}$ denotes inner product between vectors.
+Two groups of parameters are used here:
+
+\vspace{-1em}
+\begin{itemize}
+	\item {\bf Node weight:} Letter-wise discriminant weight vector $\wvec_k \in \RR^{128}$ for each possible letter label $k \in \Ycal$;
+	\item {\bf Edge weight:} Transition weight matrix $T$ which is sized $26$-by-$26$.
+	$T_{ij}$ is the weight associated with the letter pair of the $i$-th and $j$-th letter in the alphabet.  For example $T_{1,9}$ is the weight for pair (`a', `i'), and $T_{24,2}$ is for the pair (`x', `b'). In general $T$ is not symmetric, \ie\ $T_{ij} \neq T_{ji}$, or written as $T' \neq T$ where $T'$ is the transpose of $T$.
+\end{itemize}
+
+Given these parameters (\eg\ by learning from data), the model \eqref{eq:crf} can be used to predict the sequence label (\ie\ word) for a new word image $X^* := (\xvec^*_1, \ldots, \xvec^*_m)'$ via the so-called maximum a-posteriori (MAP) inference:
+\begin{align}
+	\label{eq:crf_decode}
+	\yvec^* = \argmax_{\yvec \in \Ycal^m} p(\yvec | X^*)
+	= \argmax_{\yvec \in \Ycal^m} \cbr{ \sum_{j=1}^m \inner{\wvec_{y_j}}{\xvec^*_j} + \sum_{j=1}^{m-1} T_{y_j, y_{j+1}}}.
+\end{align}
+
+
+
+
+\begin{itemize}
+	\item[(1a)] {\bf [5 Marks]} Show that $\grad_{\wvec_y} \log p(\yvec|X)$---the gradient of $\log p(\yvec|X)$ with respect to $\wvec_y$---can be written as:
+	\begin{align}
+		\grad_{\wvec_y} \log p(\yvec^t|X^t) &= \sum_{s=1}^m (\sembrack{y^t_s = y} - p(y_s = y | X^t)) \xvec^t_s,
+	\end{align}
+	where $\llbracket \cdot \rrbracket = 1$ if $\cdot$ is true, and 0 otherwise.
+	Show your derivation step by step.
+	
+	Now derive the similar expression for $\grad_{T_{ij}} \log p(\yvec|X)$.
+	
+		{\bf [Answer:]} 
+	(i) $\grad_{\wvec_y} \log p(\yvec^t|X^t)$
+	\begin{align}
+		\grad_{\wvec_y} \log p(\yvec^t|X^t) &= \grad_{\wvec_y} \rbr{-logZ_{X^t} + \sum_{s=1}^m \inner{\wvec_{{y_s}^t}}{\xvec_s^t} + \sum_{s=1}^{m-1} T_{{y_s}^t, {y_{s+1}}^t}} \\ 
+		&=\grad_{\wvec_y} \rbr{-logZ_{X^t} + \sum_{s=1}^m \inner{\wvec_{{y_s}^t}}{\xvec_s^t}}
+	\end{align}
+
+	First, we take gradient of the second term: 
+	\begin{align}
+		\grad_{\wvec_y} \sum_{s=1}^m \inner{\wvec_{{y_s}^t}}{\xvec_s^t} &= \sum_{s=1}^m \grad_{\wvec_y} (\wvec_{y_s^t}^T {{\xvec_s}^t}) \\
+		&= \sum_{s=1}^m \sembrack{y^t_s = y} \xvec^t_s
+	\end{align}
+
+	Now, we take the gradient of the first term: 
+	\begin{align}
+		\label{eq:gradient_wy}
+		-\grad_{\wvec_y} logZ_{X^t} &= -\frac{1}{Z_{X^t}} \sum_{\yvec \in \Ycal^m}\exp \rbr{\sum_{s=1}^m \inner{\wvec_{y_s}}{\xvec_s^t} + \sum_{s=1}^{m-1} T_{y_s, y_{s+1}}} \grad_{\wvec_y} \sum_{s=1}^m \inner{\wvec_{y_s}}{\xvec_s^t} \\
+		&= -\sum_{\yvec \in \Ycal^m}p(\yvec|X^t) \sum_{s=1}^m \sembrack{y_s = y} \xvec^t_s \\
+		&= -\sum_{s=1}^m p(y_s = y|X^t)\xvec^t_s
+	\end{align}
+
+	Therefore, we get: 
+	\begin{align}
+		\grad_{\wvec_y} \log p(\yvec^t|X^t) &= \sum_{s=1}^m (\sembrack{y^t_s = y} - p(y_s = y | X^t)) \xvec^t_s
+	\end{align}
+	\begin{flushright}
+	Q.E.D.
+	\end{flushright}
+
+	(ii) $\grad_{T_{ij}} \log p(\yvec^t|X^t)$
+	\begin{align}
+		\grad_{T_{ij}} \log p(\yvec^t|X^t) &= \grad_{T_{ij}} \rbr{-logZ_{X^t} + \sum_{s=1}^m \inner{\wvec_{{y_s}^t}}{\xvec_s^t} + \sum_{s=1}^{m-1} T_{{y_s}^t, {y_{s+1}}^t}} \\ 
+		&=\grad_{T_{ij}} \rbr{-logZ_{X^t} + \sum_{s=1}^{m-1} T_{{y_s}^t, {y_{s+1}}^t}}
+	\end{align}
+
+ 	First, we take gradient of the second term: 
+	\begin{align}
+		\grad_{T_{ij}} \sum_{s=1}^{m-1} T_{{y_s}^t, {y_{s+1}}^t} &= \sum_{s=1}^{m-1} \grad_{T_{ij}} T_{{y_s}^t, {y_{s+1}}^t} \\
+		&= \sum_{s=1}^{m-1} \sembrack{{y^t_s} = i, y^t_{s+1} = j}
+	\end{align}
+
+ 	Now, we take the gradient of the first term: 
+	\begin{align}
+		\label{eq:gradient_T}
+		-\grad_{T_{ij}} logZ_{X^t} &= -\frac{1}{Z_{X^t}} \sum_{\yvec \in \Ycal^m}\exp \rbr{\sum_{s=1}^m \inner{\wvec_{y_s}}{\xvec_s^t} + \sum_{s=1}^{m-1} T_{y_s, y_{s+1}}} \grad_{T_{ij}} \sum_{s=1}^{m-1} T_{{y_s}, {y_{s+1}}} \\
+		&= -\sum_{\yvec \in \Ycal^m}p(\yvec|X^t) \sum_{s=1}^{m-1} \sembrack{y_s = i, y_{s+1} = j} \\
+		&= -\sum_{s=1}^{m-1} p(y_s = i, y_{s+1} = j|X^t)
+	\end{align}
+
+	Therefore, we get: 
+	\begin{align}
+		\grad_{T_{ij}} \log p(\yvec^t|X^t) &= \sum_{s=1}^{m-1} (\sembrack{y^t_s = i, y^t_{s+1} = j} -  p(y_s = i, y_{s+1} = j|X^t))
+	\end{align}
+	Note that in the above notations, $y^t_s$ are known labels that are given, while $y_s$ is random variable. 
+
+	\item[(1b)] {\bf [5 Marks]} A feature is a function that depends on $X$ and $\yvec$, but not $p(X|\yvec)$. Show that the gradient of $\log Z_X$ with respect to $\wvec_y$ and $T$ is exactly the expectation of some features with respect to $p(\yvec | X)$, and what are the features? Include your derivation.
+	
+	Hint: $T_{y_j, y_{j+1}} = \sum_{p \in \Ycal, q \in \Ycal} T_{pq} \cdot \llbracket (y_j, y_{j+1}) = (p,q)  \rrbracket$.
+
+	{\bf [Answer:]} 
+
+	As we have shown in \eqref{eq:gradient_wy}, $\grad_{\wvec_y} logZ_{X^t} = \sum_{\yvec \in \Ycal^m}p(\yvec|X^t) \sum_{s=1}^m \sembrack{y_s = y} \xvec^t_s$. 
+	\begin{align}
+		\sum_{\yvec \in \Ycal^m}p(\yvec|X^t) \sum_{s=1}^m \sembrack{y_s = y} \xvec^t_s = \EE_{\yvec \sim p(\yvec|X^t; \thetavec)} \sum_{s=1}^m \sembrack{y_s = y} \xvec^t_s
+	\end{align} 
+
+	where $\thetavec = [\wvec'_1, \ldots, \wvec'_{26}, T_{1,1}, T_{2,1}, \ldots, T_{26, 1}, T_{1,2}, \ldots, T_{26, 2}, \ldots, T_{1, 26}, \ldots, T_{26, 26}]'$.
+
+	The feature in this case would be $\phi(X,\yvec) = \sum_{s=1}^m \sembrack{y_s = y} \xvec^t_s; \forall y \in \Ycal = \{1, 2, ..., 26\}$. 
+
+	In (1a) \eqref{eq:gradient_T}, we also showed that $\grad_{T_{ij}} logZ_{X^t} = \sum_{\yvec \in \Ycal^m}p(\yvec|X^t) \sum_{s=1}^{m-1} \sembrack{y_s = i, y_{s+1} = j} $.
+	\begin{align}
+		\sum_{\yvec \in \Ycal^m}p(\yvec|X^t) \sum_{s=1}^{m-1} \sembrack{y_s = i, y_{s+1} = j} = \EE_{\yvec \sim p(\yvec|X^t; \thetavec)} \sum_{s=1}^{m-1} \sembrack{y_s = i, y_{s+1} = j} 
+	\end{align}
+
+	The feature is $\phi(X,\yvec) = \sum_{s=1}^{m-1} \sembrack{y_s = i, y_{s+1} = j}; \forall (i, j) \in \Ycal = \{1, 2, ..., 26\}$, which does not depend on $X$. 
+
+	
+	\item[(1c)] {\bf [20 Marks]} Implement the decoder \eqref{eq:crf_decode} with computational cost $O(m|\Ycal|^2)$.
+
+	The project package includes a test case stored in \verb#data/decode_input.txt#.
+	It has a single word with 100 letters ($\xvec_1, \ldots, \xvec_{100}$), $\wvec_y$, and $T$, stored as a column vector in the form of
+	\begin{align}
+		[\xvec'_1, \ldots, \xvec'_{100}, \wvec'_1, \ldots, \wvec'_{26}, T_{1,1}, T_{2,1}, \ldots, T_{26, 1}, T_{1,2}, \ldots, T_{26, 2}, \ldots, T_{1, 26}, \ldots, T_{26, 26}]'.
+	\end{align}
+	All $\xvec_i \in \RR^{128}$ and $\wvec_j \in \RR^{128}$.
+	
+	In your submission, create a folder \verb#result# and store the result of decoding (the optimal $\yvec^* \in \Ycal^{100}$ of \eqref{eq:crf_decode}) in \underline{\texttt{result/decode\_output.txt}}.
+	It should have 100 lines,
+	where the $i$-th line contains one integer in $\{1,\ldots,26\}$ representing $y^*_i$.
+	In your report, provide the maximum objective value $\sum_{j=1}^m \inner{\wvec_{y_j}}{\xvec_j} + \sum_{j=1}^{m-1} T_{y_j, y_{j+1}}$ for this test case.
+	If you are using your own dynamic programming algorithm (\ie\ not max-sum),
+	give a brief description especially the formula of recursion.
+
+	{\bf [Answers:]} 
+
+	The the maximum objective value $\sum_{j=1}^m \inner{\wvec_{y_j}}{\xvec_j} + \sum_{j=1}^{m-1} T_{y_j, y_{j+1}}$ is 200.19.  
+
+	See the predicted labels in \underline{\texttt{result/decode\_output.txt}}. 
+
+	The predicted labels are $\{18, 11, \ldots, 23\}$, which correspond to letters $\{r, k, \ldots, w\}$.
+\end{itemize}
+
+\section{Training Conditional Random Fields}
+
+Finally, given a training set $\{X^t, \yvec^t\}_{t=1}^n$ ($n$ words),
+we can estimate the parameters $\{\wvec_k : k \in \Ycal\}$ and $T$ by maximizing the likelihood of the conditional distribution in \eqref{eq:crf}, or equivalently
+\begin{align}
+	\label{eq:obj_MLE}
+	\min_{\{\wvec_y\}, T} \ -\frac{C}{n}\sum_{i=1}^n \log p(\yvec^i | X^i) + \frac{1}{2} \sum_{y \in \Ycal} \nbr{\wvec_y}^2 + \frac{1}{2} \sum_{ij} T^2_{ij}.
+\end{align}
+Here $C > 0$ is a trade-off weight that balances log-likelihood and regularization.
+
+
+\begin{itemize}
+	\item[(2a)] {\bf [20 Marks]} Implement a dynamic programming algorithm to compute $\log p(\yvec^i | X^i)$ and its gradient.  Recall that the gradient is nothing but the expectation of features, and therefore it suffices to compute the marginal distribution of $y_j$ and $(y_j, y_{j+1})$. The underlying dynamic programming principle is common to the computation of $\log p(\yvec^i | X^i)$, its gradient, and the decoder of \eqref{eq:crf_decode}.
+	
+	The project package includes a (big) test case in \verb#data/model.txt#.
+	It specifies a value of $\wvec_y$ and $T$ as a column vector (again $T \neq T'$):
+	\begin{align}
+		\label{eq:model_vec}
+		[\wvec'_1, \ldots, \wvec'_{26}, T_{1,1}, T_{2,1}, \ldots, T_{26, 1}, T_{1,2}, \ldots, T_{26, 2}, \ldots, T_{1, 26}, \ldots, T_{26, 26}]'.
+	\end{align}
+	Compute the gradient $\frac{1}{n} \sum_{i=1}^n \grad_{\wvec_y} \log p(\yvec^i | X^i)$ and
+	$\frac{1}{n} \sum_{i=1}^n \grad_{T} \log p(\yvec^i | X^i)$
+	(\ie\ averaged over the training set provided in \verb#data/train.txt#) evaluated at this $\wvec_y$ and $T$.
+	Store them in \underline{\texttt{result/gradient.txt}} as a column vector following the same order as in \eqref{eq:model_vec}.
+	Pay good attention to column-major / row-major of your programming language when writing $T$.
+	
+	{\bf Provide} the value of $\frac{1}{n} \sum_{i=1}^n \log p(\yvec^i | X^i)$ for this case in your report.
+	
+	{\bf [Answers:]} 
+
+    The value of $\frac{1}{n} \sum_{i=1}^n \log p(\yvec^i | X^i)$ is -31.32. 
+	
+	
+	\item[(2b)] {\bf [20 Marks]} We can now learn ($\{\wvec_y\}, T$) by solving the optimization problem in \eqref{eq:obj_MLE} based on the training examples in \verb#data/train.txt#.
+	Set $C = 1000$.
+	Typical off-the-shelf solvers rely on a routine which, given as input a feasible value of the optimization variables ($\wvec_y, T$), returns the objective value and gradient evaluated at that ($\wvec_y, T$). This routine is now ready from the above task.
+	
+	In Matlab, you can use \verb#fminunc# from the optimization toolbox. In Python, you can use \verb#fmin_l_bfgs_b#, \verb#fmin_bfgs#, or \verb#fmin_ncg# from \verb#scipy.optimize#.
+	Although \verb#fmin_l_bfgs_b# is for constrained optimization while \eqref{eq:obj_MLE} has no constraint, one only needs to set the bound to $(-\inf, \inf)$.  Set the initial values of $\wvec_y$ and $T$ to zero.
+	
+	Optimization solvers usually involve a large number of parameters.
+	Some default settings for Matlab and Python solvers are provided in \verb#code/ref_optimize.m# and \verb#code/ref_optimize.py# respectively,
+	where comments are included on the meaning of the parameters and other heuristics.
+	It also includes some pseudo-code of CRF objective/gradient,
+	to be used by various solvers.
+	Read it even if you do not use Matlab, because similar settings might be used in other languages.
+	Feel free to tune the parameters of the solvers if you understand them.
+	
+	In your submission, include
+	\begin{itemize}
+		\item The optimal solution $\wvec_y$ and $T$.  Store them as \underline{\tt{result/solution.txt}}, in the format of \eqref{eq:model_vec}.
+		%
+		\item The predicted label for each letter in the test data \verb#data/test.txt#, using the decoder implemented in (1c).
+		Store them in \underline{\tt{result/prediction.txt}},
+		with each line having one integer in $\{1,\ldots, 26\}$ that represents the predicted label of a letter, in the same order as it appears in \verb#data/test.txt#.
+	\end{itemize}
+	In your report, provide the optimal objective value of \eqref{eq:obj_MLE} found by your solver.
+\end{itemize}
+
+{\bf [Answers:]} 
+
+We have encounted some problem when we calculated the gradients. Therefore we cannot provide the optimal solution $\wvec_y$ and $T$. 
+
+
+\section{Benchmarking with Other Methods}
+
+\begin{itemize}
+	\item[(3a)] {\bf [10 Marks]} For each of CRF, SVM-Struct, and SVM-MC,
+	plot a curve in a separate figure where the $y$-axis is the letter-wise prediction accuracy on test data,
+	and the $x$-axis is the value of \verb#-c# varied in a range that you find reasonable,
+	\eg\ $\{1, 10, 100, 1000\}$.
+	Theoretically, a small \verb#-c# value will ignore the training data and generalize poorly on test data.
+	On the other hand, overly large \verb#-c# may lead to overfitting, and make optimization challenging (taking a lot of time to converge).
+	
+	What observation can be made on the result?
+
+	{\bf [Answers:]} 
+
+	{\bf{SVM-MC}}: We used the liblinearutil library form LibLinear python Package (see file svmmc.py). 
+
+	Data used: train.txt, test.txt (Intermediate files: dftrain.txt, dftest.txt)
+
+	Values of –C parameter used: [1, 10, 100, 1000, and 5000]. We need to divide these values by the length of letters. 
+
+	{\bf{SVM\_HMM}}: We trained using svm\_hmm\_learn.exe and predicted letters of the test data using svm\_hmm\_classify.exe.
+
+	Values of C used [1, 10, 100, 1000, and 5000]
+
+	Training Data: train\_struct.txt
+	
+	Testing Data : test\_struct.txt
+
+	Models are as follows:  msl1.dat, msl10.dat, msl100.dat, msl1000.dat, msl5000.dat
+
+	Predicted labels are as follows:  p\_labels1.txt, p\_labels10.txt, p\_labels100.txt, p\_labels1000.txt, p\_labels5000.txt
+	
+	%Word accuracies for different values of –C in [1, 10, 100, 1000, 5000]
+	{\bf{CRF}: We have encountered some problem regarding the gradients. Note that we use some arbituary numbers to plot the accuracy of CRF model. X axis: c; Y axis: letter-wise accuracy. }
+
+	The letter-wise accuracies (\%) are: 
+	\begin{table}[h]
+	\centering
+	\begin{tabular}{lllllll}
+	           & 1     & 10    & 100   & 1000  & 5000  \\ %& 5000000 \\
+	\hline
+	SVM-MC     & 48.35 & 61.18 & 68.04 & 69.73 & 69.96 \\ %& 54.18\\
+	SVM-HMM & 67.57 & 75.34 & 82.24 & 84.62 & 85.24 \\
+	CRF        &       &       &       &       &       \\
+	\hline
+	\end{tabular}
+	\end{table}
+
+	\begin{figure}[h]
+	\includegraphics[width = 10 cm]{./letteraccuracies.png}
+	\centering
+	\end{figure}
+	
+	{\bf{Observations:}} 
+
+	The SVM-HMM performs better than SVM-MC. The accuracy increases when we increase c and plateaus around c = 5000. When we choose a very large c, the accuracy dropps (e.g., when c = 50000, the SVM-MC accuracy is only 50\%). The best c among the ones we choose is 5000. This optimal C will be used for Q4. 
+
+	
+	\item[(3b)] {\bf [5 Marks]} Produce another three plots for word-wise prediction accuracy on test data.  What observation can be made on the result?
+
+	{\bf [Answers:]} 
+
+	The word-wise accuracies (\%) are: 
+	\begin{table}[h]
+	\centering{}
+	\begin{tabular}{lllllll}
+	           & 1     & 10    & 100   & 1000  & 5000 \\ %& 5000000 \\
+	\hline
+	SVM-MC     & 1.63 & 7.18 & 14.83 & 16.75 & 17.13 \\ %& 4.77\\
+	SVM-HMM & 16.63 & 26.22 & 41.35 & 48.27 & 49.49 \\
+	CRF        &       &       &       &       &        \\
+	\hline
+	\end{tabular}
+	\end{table}
+
+
+	{\bf{CRF}: We have encountered some problem regarding the gradients. Note that we use some arbituary numbers to plot the accuracy of CRF model. X axis: c; Y axis: word-wise accuracy. }
+
+	\begin{figure}[h]
+	\includegraphics[width = 10 cm]{./wordaccuracies.png}
+	\centering
+	\end{figure}
+
+	{\bf{Observations:}} 
+
+	Word-wise accuracy is smaller than that of letter-wise accuracy. Again, SVM-HMM performs better than SVM-MC. The optimal c is also at 5000. 
+
+\end{itemize}
+
+
+\section{Robustness to Distortion}
+
+\begin{itemize}
+	\item[(4a)] {\bf [10 Marks]} In one figure, plot the following two curves where the $y$-axis is the letter-wise prediction accuracy on test data.  We will apply to the training data the first $x$ lines of transformations specified in \verb#data/transform.txt#.  $x$ is varied in $\{0, 500, 1000, 1500, 2000\}$ and serves as the value of $x$-axis.
+	
+	1) CRF where the \verb#-c# parameter is set to any of the best values found in (3a);
+	
+	2) SVM-MC where the \verb#-c# parameter is set to any of the best values found in (3a).
+	
+	What observation can be made on the result?
+
+	{\bf [Answers:]} 
+
+	{\bf{SVM-MC}}: We trained the model using the transformed data (randomly translated and rotated data) for values in [0, 500, 1000, 1500, 2000] along with some original data. 
+
+ 	The letter-wise accuracies (\%) are: 
+	\begin{table}[h]
+	\centering
+	\begin{tabular}{lllllll}
+	          & 0     & 500    & 1000   & 1500  & 2000  \\ %& 5000000 \\
+	\hline
+	SVM-MC     & 69.95 & 69.42 & 69.05 & 68.6 & 68.15 \\ %& 54.18\\
+	CRF        &       &       &       &       &       \\
+	\hline
+	\end{tabular}
+	\end{table}
+
+	{\bf{CRF: We have encountered some problem regarding the gradients. Note that we use some arbituary numbers to plot the accuracy of CRF model. X axis: first x lines of transformations; Y axis: letter-wise accuracy.}}
+
+	\begin{figure}[h]
+	\includegraphics[width = 10 cm]{./letteraccuracies2.png}
+	\centering
+	\end{figure}
+	
+	{\bf{Observations:}} 
+
+	The accuracies are just slightly less than the letter-wise results without transformations (Q3-1). This suggests robustness in the model. We picked -c to be 5000 from Q3. 
+
+	
+	\item[(4b)] {\bf [5 Marks]}  Generate another plot for word-wise prediction accuracy on test data.  The \verb#-c# parameter in SVM-MC may adopt any of the best values found in (3b).
+	What observation can be made on the result?
+
+	{\bf [Answers:]} 
+
+	The word-wise accuracies (\%) are: 
+	\begin{table}[h]
+	\centering
+	\begin{tabular}{lllllll}
+	          & 0     & 500    & 1000   & 1500  & 2000  \\ %& 5000000 \\
+	\hline
+	SVM-MC     & 17.19 & 16.75 & 16.28 & 15.30 & 15.09 \\ %& 54.18\\
+	CRF        &       &       &       &       &       \\
+	\hline
+	\end{tabular}
+	\end{table}
+
+	{\bf{CRF: We have encountered some problem regarding the gradients. Note that we use some arbituary numbers to plot the accuracy of CRF model. X axis: first x lines of transformations; Y axis: word-wise accuracy.}}
+
+	\begin{figure}[h]
+	\includegraphics[width = 10 cm]{./wordaccuracies2.png}
+	\centering
+	\end{figure}
+
+	{\bf{Observations:}} 
+
+	Similarly, the accuracies are just slightly less than the actual word-wise accuracies without transformations (Q3-2). This suggests robustness in the model word-wise. We picked -c to be 5000 from Q3. 
+
+
+	
+\end{itemize}
+
+
+\end{document}

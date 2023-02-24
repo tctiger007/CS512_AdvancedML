@@ -1,0 +1,113 @@
+\documentclass[11pt]{report}
+\usepackage{./assignmentMod}
+\usepackage{slashbox}
+\usepackage{graphicx}
+\usepackage{subfigure}
+\usepackage{enumerate}
+\usepackage[shortlabels]{enumitem}
+\usepackage{stmaryrd}
+\usepackage[final]{pdfpages}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{authblk}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{epstopdf}
+
+\input{./Definitions}
+
+\begin{document}
+\title{
+  CS512: Advanced Machine Learning. \\
+  \large Assignment 3: Adversarial Training on Sequence Classification}
+
+\author{Garima Gupta: ggupta22@uic.edu \and Sai Teja Karnati: skarna3@uic.edu \and
+ Shubham Singh: ssing57@uic.edu \and Wangfei Wang: wwang75@uic.edu}
+
+\graphicspath{{../../Figures/}}
+
+\maketitle
+
+\section{Introduction}
+\section{(15 points) Training the Basic Model}
+
+Hyperparameters values: 
+
+\texttt{batch\_size = 27}, \texttt{hidden\_size = 10}, \texttt{basic\_epoch = 100}, \texttt{out\_channels = 64}, \texttt{kernel\_size = 10},  \texttt{stride = 3}, \texttt{lr = 1e-3} (learning rate), \texttt{weight\_decay = 1e-3}. 
+
+\begin{figure}[h]
+    \includegraphics[width = 15 cm]{BasicModel.png}
+    \centering
+\end{figure}
+
+
+
+
+\section{(10 points)  Save and Load Pretrained Model}
+
+See code in \texttt{training.py} under the comment \texttt{Part 3, Save and Load model}.  
+
+\section{(25 points) Adversarial Training as Regularization}
+\begin{itemize}
+    \item[a] \textbf{(10 points)} See the \texttt{compute\_perturbation} function in \texttt{training.py}.
+    \item[b] \textbf{(5 points)} See the branch \texttt{mode} = `AdvLSTM' in \texttt{LSTMClassifier} in \texttt{Classifier.py}.
+    \item[c] \textbf{(10 points)} 
+
+    Among the $\epsilon$'s we have tried ($\epsilon = [0, 2, 4, 6, 8, 10, 0.001, 0.01, 0.08, 0.1, 1, 10, 100, 1000]$), $\epsilon = 0.08$ gives the optimal performance at the end of 100 epochs. 
+    The other hyperparameters were set the same as those in the basic model. 
+    The adversial training improved the test accuracy although this improvement is not significant. 
+    The basic model test accuracy is about 92.02\%, while with adversarial training, the test accuracy reached 92.3\%. 
+    The output of basic model test accuracy and test accuracy with adversarial training were stored in \texttt{BasicModel\_test.txt}, and first 100 rows of \texttt{AdvModel\_acc.txt} in folder \texttt{Figures}. 
+    %\texttt{AdvModel_acc.txt} were stored as the test accuracy for 100 epoches of optimal epsilon = 0.08, followed by test accuracy of 100 epoches of epsilon = 0.01, 0.1, 1. 
+
+    As shown in the figure, the performance of the model changes slightly with the change of $\epsilon$ between $[0.01, 0.1, 1]$, meaning our model is pretty robust to disturbance. 
+    At the end of epoch 50, $\epsilon = 0.01$ seems to give the best test accuracy among $\epsilon = [0.01, 0.1, 1]$. 
+   % But again, the test accuracies are pretty similar in the set of $\epsilon$'s we have tried.    
+
+    \begin{figure}[h]
+    	\includegraphics[width = 15 cm]{AdvModel.png}
+    	\centering
+	\end{figure}
+
+\end{itemize}
+
+	
+
+
+\section{(40 points) Adversarial Training as Proximal Mapping}
+\begin{itemize}
+    \item[a] \textbf{(30 points)} We have implemented the ProxLSTMCell in \texttt{ProxLSTM.py}. We also have implemented \texttt{forward} pass and \texttt{backward} pass. See code. 
+    \item[b] \textbf{(10 points)} We have written a branch in \texttt{LSTMClassifier} that can handle \texttt{mode = `ProxLSTM'}. See code. 
+
+    \begin{figure}[h]
+        \includegraphics[width = 15 cm]{ProxModel.png}
+        \centering
+    \end{figure}
+
+    Among the $\epsilon = \lambda^{-1}\sigma^2$ we have tried, $\epsilon = 0.08$ also performed the best. The performance of the model (test accuracy = 92.02\%) did not improve significantly from the previous models. 
+    This is probably because of the small dataset.  
+    We also notice that the small change of $\epsilon$ did not change the performance significantly. 
+    Among $\epsilon = [0.1, 1.0, 5.0]$, $\epsilon = 1.0$ seems to perform the best. 
+
+
+\end{itemize}
+
+\section{(10 points) Dropout and Batch Normalization}
+\begin{itemize}
+    \item[a] \textbf{(5 points)} We have initiated a dropout layer in \texttt{Classifier.py} and we use it with a flag \texttt{apply\_dropout}. When the flag is set to \texttt{True}, we apply the dropout before the convolution layer. 
+    Our finding was that by adding a dropout layer in \texttt{Classifier.py} did not help regularize the convolution parameters, and improve the test accuracy. 
+    It actually made our model underfit compared to any of the previous models (test accuracy dropped to around 87\%).  
+    The results were stored in \texttt{ProxModel\_acc\_dropout.txt}.
+
+    \item[b] \textbf{(5 points)} We have implemented a batch normalization layer in \texttt{Classifier.py} and like dropout, we have a flag \texttt{apply\_batch\_norm}, which when set to \texttt{True}, is applied before the ProxLSTM layer. 
+    By adding the batch normalization layer, the test accuracy is around 91.5\%. 
+    It doesn't seem to help improve test accuracy greatly. 
+    The results were stored in \texttt{ProxModel\_acc\_batchnorm.txt}.
+\end{itemize}
+
+
+
+
+\end{document}

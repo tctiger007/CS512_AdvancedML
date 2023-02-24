@@ -1,0 +1,198 @@
+\documentclass[11pt]{report}
+\usepackage{./assignment}
+\usepackage{slashbox}
+%\usepackage{enumitem}
+%\usepackage{stmaryrd}
+%\usepackage{cprotect}
+\usepackage{graphicx}
+\usepackage{subfigure}
+\usepackage{enumerate}
+\usepackage[shortlabels]{enumitem}
+\usepackage{stmaryrd}
+\usepackage[final]{pdfpages}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{authblk}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{epstopdf}
+
+\input{./Definitions}
+
+\begin{document}
+\title{
+  CS512: Advanced Machine Learning. \\
+  \large Assignment 2: Conditional Random Fields and Convolutions}
+
+\author{Garima Gupta: ggupta22@uic.edu \and Sai Teja Karnati: skarna3@uic.edu \and
+ Shubham Singh: ssing57@uic.edu \and Wangfei Wang: wwang75@uic.edu}
+
+\graphicspath{{./}{./Figures/}}
+
+\maketitle
+
+\section{(20 points) Convolution}
+
+
+\begin{itemize}
+\item[(3a)] \textbf{(20 points)} 
+We implemented Conv layer and the get\_conv\_features(x) function in the starter code, with accommodation of different strides and an option of zero padding. 
+The implementation was tested.
+
+For the following X and K with unit stride and zero padding: 
+%
+\[
+X = \begin{bmatrix}
+1 & 1 & 1 & 0 & 0 \\
+0 & 1 & 1 & 1 & 0\\
+0 & 0 & 1 & 1 & 1\\
+0 & 0 & 1 & 1 & 0\\
+0 & 1 & 1 & 0 & 0
+\end{bmatrix} ; \quad
+K = \begin{bmatrix}
+1 & 0 & 1 \\
+0 & 1 & 0 \\
+1 & 0 & 1
+\end{bmatrix}
+\]
+
+the result of convolving the X with K is: 
+\[
+\hat{X} = \begin{bmatrix}
+2 & 2 & 3 & 1 & 1 \\
+1 & 4 & 3 & 4 & 1\\
+1 & 2 & 4 & 3 & 3\\
+1 & 2 & 3 & 4 & 1\\
+0 & 2 & 2 & 1 & 1
+\end{bmatrix};
+\]
+
+See {\tt code} folder for {\tt conv\_test.py}. 
+\end{itemize}
+
+\clearpage
+\section{(50 points) CRF}
+
+\begin{itemize}
+\item[(4a)] We implemented the forward, backward pass and loss inside
+  \texttt{crf.py}. 
+
+  See code.
+
+\item[(4b)] \textbf{(20 points)} 
+
+Parameters we are using:
+
+Batch size = 64
+
+Number of iterations = 100
+
+C = 1000 for CRF
+
+LBFGS lr = 0.1 
+
+Zero-padded
+
+(1) \textbf{letter-wise prediction accuracy}. 
+
+\begin{figure}[h]
+	\includegraphics[width = 15 cm]{./letteraccuracies_4b.png}
+	\centering
+\end{figure}
+
+
+(2) \textbf{word-wise prediction accuracy}. 
+
+\begin{figure}[h]
+	\includegraphics[width = 15 cm]{./wordaccuracies_4b.png}
+	\centering
+\end{figure}
+
+
+Average letter accuracy for training set is 88.0\%
+
+Average letter accuracy for test set is 65.7\%.
+
+Average word accuracy for training set is 49.4\%
+
+Average word accuracy for test set is 12.9\%
+  
+\clearpage
+\item [(4c)] {\bf (20 points)} Repeat experiments in (4b) with the following convolution layers. Set stride and zero/no padding
+  to optimize the test performance.
+
+The other parameters used in this case are: 
+
+Batch size 64
+
+Iterations 100
+
+C = 1000 for CRF
+
+LBFGS learning rate = 0.1 
+
+Zero-padded
+
+2-CNN CRF:
+\begin{enumerate}
+	\item A Layer with \(5 \times 5\) filter matrix
+	\item A Layer with \(3 \times 3\) filter matrix
+\end{enumerate}
+
+\vspace{2mm}
+(1) \textbf{letter-wise prediction accuracy}, 
+
+\begin{figure}[h]
+	\includegraphics[width = 15 cm]{./letteraccuracies_4c.png}
+	\centering
+\end{figure}
+
+(2) \textbf{word-wise prediction accuracy}. 
+
+\begin{figure}[h]
+	\includegraphics[width = 15 cm]{./wordaccuracies_4c.png}
+	\centering
+\end{figure}
+
+
+Average letter accuracy for training set is 88.3\%
+
+Average letter accuracy for test set is 63.1\%
+
+Average word accuracy for training set is 51.4\%
+
+Average word accuracy for test set is 11.4\%
+
+Our accuracies fluctuates a little bit between iterations. 
+\begin{enumerate}
+	\item This could mean that our model is subjective to small noises. And on test set, if the accuaracy fluctuates, it usually means that our model is overfitting. We've played with hyper-parameters (e.g., learning rate and value of C) to try to increase the regularization. However, the result still fluctuates.
+	\item We've also noticed that the dataset we were given include some words that were repetitive. That could also cause the unstableness of our model. 
+\end{enumerate}
+
+Comparing 4b and 4c, the accuracies are pretty similar. It's very like both of the models in 4b and 4c are overfitting and therefore, adding an extra layer in 4c did not improve accuracies a lot. 
+
+\clearpage
+\item [(4d)] {\bf (10 points)} Enable GPU in your implementation. Does it lead
+  to significant speedup? You can test on the network in 4c. Make sure your plot
+  uses wallclock time as the horizontal axis.
+
+\begin{figure}[h]
+	\includegraphics[width = 15 cm]{./walltime.png}
+	\centering
+\end{figure}
+
+The GPU isn't much faster than CPU. 
+In our case, GPU is even slower than CPU. 
+We think it's first because that function dp\_infer() in inference.py is quite slow and not optimal for GPU.
+Second, we think somewhere in our code is using CPU that is not compatible with the GPU we were using, which caused communication problem between CPU and GPU. 
+
+We also noticed that using matrix operations instead of for loop in dp\_infer() could speed up the code. 
+
+
+\end{itemize}
+
+
+
+\end{document}
